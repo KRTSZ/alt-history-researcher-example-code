@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1814">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Alt History Explorer</title>
+{# Google Fonts loaded from CDN — remove if offline use required #}
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/style.css">
+{# Pass server-side config to the client as data attributes on <body>.
+   This avoids an extra /api/config round-trip and keeps the JS generic. #}
+</head>
+<body data-free-limit="{{ free_limit }}"
+      data-has-server-key="{{ 'true' if has_server_key else 'false' }}">
+
+<div id="app">
+
+  <!-- ── Top bar ──────────────────────────────────────────────────── -->
+  <div id="top-bar">
+    <h1 id="top-title">Alternative History Explorer</h1>
+    <button class="top-btn" onclick="showHistory()">History</button>
+    <button class="top-btn" id="btn-new" onclick="newQuestion()" style="display:none">New ✦</button>
+  </div>
+
+  <!-- ── Setup screen ─────────────────────────────────────────────── -->
+  <div class="screen" id="screen-setup">
+
+    <!-- Provider / model settings -->
+    <div class="section-card">
+      <div class="section-card-head">Model &amp; API Key</div>
+      <div id="providers-body"></div>
+      {% if has_server_key %}
+      <div class="card-note">
+        Anthropic is available free ({{ free_limit }} questions/day).
+        Enter your own key below to remove the limit.
+      </div>
+      {% else %}
+      <div class="card-note" style="color:var(--red)">
+        No server key configured. Enter your own API key above.
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Question input -->
+    <div class="section-card">
+      <textarea id="question"
+        placeholder="Ask a counterfactual question — e.g. 'What if the Byzantine Empire had not fallen in 1453?'"></textarea>
+      <button class="ask-btn" id="ask-btn" onclick="ask()">
+        <span>Explore this question</span><span>→</span>
+      </button>
+    </div>
+
+    <!-- Example questions -->
+    <div class="examples-label">Example questions</div>
+    <div class="ex-pills">
+      <button class="ex-pill" onclick="fill('What if the Song Dynasty had not lost northern China to the Jurchen Jin in 1127?')">Song Dynasty industrialisation</button>
+      <button class="ex-pill" onclick="fill('What would the world look like had the Byzantine Empire not fallen in 1453?')">Byzantium survives 1453</button>
+      <button class="ex-pill" onclick="fill('What if West African states had developed ocean-going naval power in the 15th century?')">West African naval power</button>
+      <button class="ex-pill" onclick="fill('How would history differ if the Islamic Golden Age had continued past the Mongol sack of Baghdad in 1258?')">Islamic Golden Age uninterrupted</button>
+    </div>
+
+    <!-- Status (shown during a request) -->
+    <div id="status-card" class="status-card" style="display:none">
+      <div class="status-row"><span class="status-label">Status</span><span id="s-status">—</span></div>
+      <div class="status-row"><span class="status-label">Model</span><span id="s-model" style="font-size:12px">—</span></div>
+      <div class="status-row"><span class="status-label">Elapsed</span><span id="s-elapsed">0s</span></div>
+    </div>
+
+    <!-- Error display -->
+    <div id="error-card" class="error-card" style="display:none"></div>
+
+  </div><!-- /screen-setup -->
+
+  <!-- ── Results screen ───────────────────────────────────────────── -->
+  <div class="screen hidden" id="screen-results">
+
+    <div id="panel-title-bar">
+      <span id="panel-icon">✦</span>
+      <div id="panel-title">—</div>
+      <div id="panel-counter">1 / 11</div>
+    </div>
+
+    <div id="carousel-viewport">
+      <div id="carousel-track"></div>
+      <button class="nav-arrow" id="arrow-prev" onclick="navigate(-1)" aria-label="Previous panel">‹</button>
+      <button class="nav-arrow" id="arrow-next" onclick="navigate(1)"  aria-label="Next panel">›</button>
+      <div id="swipe-hint">Swipe left or right to explore</div>
+    </div>
+
+    <div id="dot-nav"></div>
+
+  </div><!-- /screen-results -->
+
+</div><!-- /app -->
+
+<!-- ── History modal ─────────────────────────────────────────────────── -->
+<div id="modal-overlay" onclick="closeHistory()">
+  <div id="modal-sheet" onclick="event.stopPropagation()">
+    <div id="modal-handle"></div>
+    <div id="modal-title">Search History</div>
+    <div id="modal-list"></div>
+    <button id="modal-close" onclick="closeHistory()">Close</button>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

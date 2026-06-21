@@ -1,0 +1,30 @@
+# wrangler.toml — Cloudflare Worker configuration
+# This file MUST be committed to the same GitHub repo as alt-history-worker.js.
+#
+# Before deploying, set these in Cloudflare Pages → Settings → Environment Variables:
+#
+#   CLOUDFLARE_API_TOKEN  (plain)  — from dash.cloudflare.com/profile/api-tokens
+#                                    use the "Edit Cloudflare Workers" template
+#   CLOUDFLARE_ACCOUNT_ID (plain)  — shown bottom-right of the Workers dashboard
+#   ANTHROPIC_KEY         (secret) — tick "Encrypt" when adding it
+
+name               = "alt-history-researcher"
+main               = "alt-history-worker.js"
+compatibility_date = "2026-06-01"
+
+# Serve everything in ./public as static files.
+# GET / automatically serves public/index.html.
+# POST / still hits the Worker for API calls.
+[assets]
+directory = "./public"
+
+# ── KV namespace for rate-limit counters ─────────────────────────────────────
+# Step 1: Deploy without this block first (rate limiting is skipped but the
+#         worker still runs).
+# Step 2: Create a KV namespace in the Cloudflare dashboard:
+#           Workers & Pages → KV → Create namespace → name it "RATE_LIMITS"
+# Step 3: Copy the Namespace ID, paste it below, then redeploy.
+#
+[[kv_namespaces]]
+binding = "RATE_LIMITS"
+id      = "YOUR_KV_NAMESPACE_ID_HERE"

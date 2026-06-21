@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!--
+  Alternative History Explorer — Android/Mobile Edition
+  ======================================================
+  To install as an Android app:
+    1. Open this file in Chrome on Android (or serve it via a local server).
+    2. Tap the three-dot menu → "Add to Home Screen".
+    3. Chrome will install it as a full-screen app icon.
+
+  For a proper signed APK (optional):
+    1. Install Node.js, then: npm install -g @capacitor/cli
+    2. npm init -y && npm install @capacitor/core @capacitor/android
+    3. npx cap init "Alt History" com.althistory.app --web-dir www
+    4. Copy this file to www/index.html
+    5. npx cap add android && npx cap sync
+    6. npx cap open android  → Build → Generate Signed Bundle/APK
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#1a1814">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Alt History Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500&family=Source+Serif+4:ital,wght@0,300;0,400;1,300&display=swap" rel="stylesheet">
+<style>
+/* ── Reset & base ─────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --ink: #1a1814; --ink-muted: #5c5648; --ink-faint: #9c9488;
+  --paper: #f5f0e8; --paper-dark: #ede8de; --paper-darker: #e0d9cc;
+  --accent: #8b3a1a; --accent-light: #c4693a;
+  --border: rgba(26,24,20,0.12); --border-strong: rgba(26,24,20,0.25);
+  --green: #2a5c3f; --amber: #8b5e1a; --red: #7a1f1f;
+  --think: #1f4a6b; --think-bg: #e8eef3;
+  --challenge: #6b4a1a; --challenge-bg: #f3ead5;
+  /* Layout */
+  --header-h: 54px; --nav-h: 64px;
+  --panel-radius: 10px;
+}
+html, body { height: 100%; overflow: hidden; }
+body {
+  font-family: 'Source Serif 4', Georgia, serif;
+  background: var(--paper-darker);
+  color: var(--ink);
+  font-size: 15px;
+  line-height: 1.55;
+  overscroll-behavior: none;
+}
+
+/* ── App shell ────────────────────────────────────────────────────── */
+#app { display: flex; flex-direction: column; height: 100dvh; height: 100vh; }
+
+/* ── Top bar ──────────────────────────────────────────────────────── */
+#top-bar {
+  height: var(--header-h); min-height: var(--header-h);
+  background: var(--ink); color: var(--paper);
+  display: flex; align-items: center; padding: 0 12px; gap: 10px;
+  flex-shrink: 0; z-index: 100;
+  /* Safe area for notched phones */
+  padding-top: env(safe-area-inset-top);
+}
+#top-bar h1 { font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 400; flex: 1; letter-spacing: .01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-btn {
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  color: var(--paper); border-radius: 6px; padding: 5px 10px; font-size: 12px;
+  cursor: pointer; font-family: inherit; white-space: nowrap; flex-shrink: 0;
+  transition: background .15s;
+}
+.top-btn:hover, .top-btn:active { background: rgba(255,255,255,0.2); }
+
+/* ── Screens ──────────────────────────────────────────────────────── */
+.screen { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.screen.hidden { display: none; }
+
+/* ── Setup screen ─────────────────────────────────────────────────── */
+#screen-setup { overflow-y: auto; padding: 16px 14px 24px; }
+
+.section-card {
+  background: var(--paper); border: 1px solid var(--border-strong);
+  border-radius: var(--panel-radius); margin-bottom: 12px; overflow: hidden;
+}
+.section-card-head {
+  padding: 9px 14px; background: var(--paper-dark);
+  border-bottom: 1px solid var(--border);
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint);
+}
+.provider-row { display: flex; align-items: center; gap: 8px; padding: 9px 14px; }
+.provider-row + .provider-row { border-top: 1px solid var(--border); }
+.provider-check input { accent-color: var(--accent); width: 16px; height: 16px; cursor: pointer; }
+.provider-name { font-size: 13px; color: var(--ink-muted); width: 72px; flex-shrink: 0; }
+.provider-model, .provider-key {
+  flex: 1; padding: 7px 8px; font-family: monospace; font-size: 11px;
+  color: var(--ink); background: var(--paper-darker);
+  border: 1px solid var(--border-strong); border-radius: 5px; outline: none; min-width: 0;
+}
+.provider-model:focus, .provider-key:focus { border-color: var(--accent); }
+.card-note { font-size: 11px; color: var(--ink-faint); font-style: italic; padding: 7px 14px; }
+
+textarea {
+  width: 100%; min-height: 100px;
+  background: var(--paper); color: var(--ink);
+  border: none; border-radius: 0;
+  padding: 12px 14px; font-family: inherit; font-size: 15px;
+  resize: none; outline: none; line-height: 1.5;
+}
+textarea::placeholder { color: var(--ink-faint); }
+.ask-btn {
+  display: flex; width: 100%; padding: 14px; background: var(--accent);
+  color: var(--paper); border: none; font-family: 'Playfair Display', serif;
+  font-size: 16px; cursor: pointer; justify-content: center; align-items: center; gap: 8px;
+  transition: background .15s;
+}
+.ask-btn:hover, .ask-btn:active { background: var(--accent-light); }
+.ask-btn:disabled { opacity: .45; cursor: default; }
+
+.examples-label { font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: 8px; }
+.ex-pills { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 14px; }
+.ex-pill {
+  font-size: 12px; padding: 6px 12px;
+  background: var(--paper); color: var(--ink-muted);
+  border: 1px solid var(--border-strong); border-radius: 100px;
+  cursor: pointer; transition: all .15s; line-height: 1.3;
+}
+.ex-pill:active { background: var(--paper-dark); }
+
+.status-card { background: var(--think-bg); border: 1px solid rgba(31,74,107,0.2); border-radius: var(--panel-radius); padding: 12px 14px; margin-bottom: 12px; }
+.status-row { display: flex; justify-content: space-between; padding: 2px 0; font-size: 13px; }
+.status-label { color: var(--ink-faint); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+.status-loading { color: var(--amber); }
+.status-thinking { color: var(--think); }
+.status-done { color: var(--green); }
+.status-fail { color: var(--red); }
+.spin { display: inline-block; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.error-card { background: #fdecea; border: 1px solid #f5c6c2; border-radius: var(--panel-radius); padding: 12px 14px; font-size: 13px; color: var(--red); margin-bottom: 12px; white-space: pre-wrap; word-break: break-word; }
+
+/* ── Results screen ───────────────────────────────────────────────── */
+#screen-results { position: relative; }
+
+/* Panel title bar (above carousel) */
+#panel-title-bar {
+  background: var(--paper-darker); border-bottom: 1px solid var(--border-strong);
+  padding: 8px 54px; text-align: center; flex-shrink: 0;
+}
+#panel-icon { font-size: 18px; display: block; }
+#panel-title { font-family: 'Playfair Display', serif; font-size: 13px; font-weight: 400; color: var(--ink); }
+#panel-counter { font-size: 10px; letter-spacing: .12em; color: var(--ink-faint); margin-top: 1px; }
+
+/* Carousel */
+#carousel-viewport { flex: 1; overflow: hidden; position: relative; }
+#carousel-track {
+  display: flex; height: 100%;
+  transition: transform .32s cubic-bezier(.4,0,.2,1);
+  will-change: transform;
+}
+.panel-card {
+  min-width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  background: var(--paper);
+}
+.panel-scroll {
+  flex: 1; overflow-y: auto;
+  /* Side padding must exceed arrow width (44px) so text never slides under them */
+  padding: 16px 58px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Nav arrows ───────────────────────────────────────────────────── */
+.nav-arrow {
+  position: absolute; top: 50%; transform: translateY(-50%);
+  width: 44px; height: 64px; z-index: 50;
+  background: rgba(245,240,232,0.92);
+  border: 1px solid var(--border-strong);
+  color: var(--ink-muted); font-size: 26px; line-height: 1;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+  /* Subtle shadow to lift arrows off content */
+  box-shadow: 0 2px 8px rgba(26,24,20,0.15);
+}
+#arrow-prev { left: 0; border-radius: 0 8px 8px 0; padding-right: 4px; }
+#arrow-next { right: 0; border-radius: 8px 0 0 8px; padding-left: 4px; }
+.nav-arrow:active { background: var(--paper-dark); color: var(--accent); }
+
+/* Hint animation on first load — pulses once to show arrows exist */
+@keyframes arrowHint {
+  0%,100% { opacity: .85; } 40% { opacity: 1; transform: translateY(-50%) translateX(-4px); }
+}
+#arrow-prev.hint { animation: arrowHint .5s ease 1s 2; }
+@keyframes arrowHintR {
+  0%,100% { opacity: .85; } 40% { opacity: 1; transform: translateY(-50%) translateX(4px); }
+}
+#arrow-next.hint { animation: arrowHintR .5s ease 1s 2; }
+
+/* ── Dot nav ──────────────────────────────────────────────────────── */
+#dot-nav {
+  display: flex; justify-content: center; align-items: center; gap: 6px;
+  padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+  background: var(--paper-darker); border-top: 1px solid var(--border); flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--border-strong); cursor: pointer; transition: all .2s; flex-shrink: 0;
+}
+.dot.active { background: var(--accent); transform: scale(1.4); }
+.dot:hover { background: var(--ink-muted); }
+
+/* ── History modal ────────────────────────────────────────────────── */
+#modal-overlay {
+  position: fixed; inset: 0; background: rgba(26,24,20,0.6);
+  z-index: 200; display: none; align-items: flex-end;
+}
+#modal-overlay.open { display: flex; }
+#modal-sheet {
+  background: var(--paper); width: 100%; max-height: 75dvh; max-height: 75vh;
+  border-radius: 14px 14px 0 0; display: flex; flex-direction: column;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+#modal-handle { width: 36px; height: 4px; background: var(--border-strong); border-radius: 2px; margin: 10px auto 6px; }
+#modal-title { font-family: 'Playfair Display', serif; font-size: 16px; padding: 0 16px 10px; color: var(--ink); }
+#modal-list { overflow-y: auto; flex: 1; padding: 0 0 8px; }
+.history-item { padding: 12px 16px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.history-item:active { background: var(--paper-dark); }
+.history-q { font-size: 13px; color: var(--ink); line-height: 1.4; }
+.history-meta { font-size: 11px; color: var(--ink-faint); margin-top: 3px; }
+.history-empty { padding: 24px 16px; font-size: 13px; color: var(--ink-faint); font-style: italic; text-align: center; }
+#modal-close { margin: 8px 16px; padding: 11px; background: var(--paper-dark); border: 1px solid var(--border-strong); border-radius: 8px; font-family: inherit; font-size: 14px; color: var(--ink-muted); cursor: pointer; }
+
+/* ── Panel content styles ─────────────────────────────────────────── */
+.panel-section-label {
+  font-size: 10px; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--ink-faint); margin-bottom: 8px;
+}
+.prose p { margin-bottom: 10px; line-height: 1.7; font-size: 15px; font-weight: 300; color: var(--ink); }
+.prose p:last-child { margin-bottom: 0; }
+
+/* Pushback */
+.pushback-banner { background: var(--challenge-bg); border-left: 3px solid var(--challenge); padding: 12px 14px; border-radius: 0 6px 6px 0; margin-bottom: 12px; }
+.pushback-banner p { font-size: 14px; color: var(--ink); line-height: 1.65; }
+
+/* Scholarly divergences */
+.scholarly-item { background: var(--paper-dark); border: 1px solid var(--border); border-radius: 7px; padding: 12px; margin-bottom: 10px; }
+.scholar-row-label { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 4px; }
+.scholar-popular { font-size: 13px; color: var(--ink-muted); margin-bottom: 10px; font-style: italic; }
+.scholar-reality { font-size: 13px; color: var(--ink); margin-bottom: 8px; }
+.scholar-matters { font-size: 12px; color: var(--ink-muted); border-top: 1px dashed var(--border); padding-top: 7px; font-style: italic; }
+
+/* Reform */
+.reform-pct-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.reform-pct-num { font-family: 'Playfair Display', serif; font-size: 34px; }
+.reform-pct-lbl { font-size: 12px; font-style: italic; color: var(--ink-muted); }
+.bar-bg { height: 5px; background: var(--paper-dark); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+.reform-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+.reform-col-head { font-size: 10px; letter-spacing: .11em; text-transform: uppercase; padding: 4px 8px; border-radius: 4px; margin-bottom: 5px; }
+.reform-for   { background: #d4ead9; color: var(--green); }
+.reform-against { background: #f8e8e0; color: var(--red); }
+.reform-col-body { font-size: 13px; color: var(--ink); font-weight: 300; line-height: 1.55; }
+.reform-row { margin-bottom: 10px; }
+.reform-row-label { font-size: 10px; letter-spacing: .11em; text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 3px; }
+.reform-row-text { font-size: 13px; color: var(--ink); font-weight: 300; line-height: 1.55; }
+
+/* Primary sources */
+.psource-item { border: 1px solid var(--border-strong); border-radius: 7px; overflow: hidden; margin-bottom: 10px; }
+.psource-head { display: flex; align-items: center; gap: 8px; background: var(--challenge-bg); padding: 10px 12px; cursor: pointer; }
+.psource-icon { font-size: 11px; color: var(--amber); flex-shrink: 0; }
+.psource-name { font-size: 13px; flex: 1; color: var(--ink); }
+.psource-type-tag { font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-faint); background: var(--paper-darker); padding: 2px 6px; border-radius: 2px; flex-shrink: 0; }
+.psource-body { display: none; padding: 10px 12px; background: #faf6ec; border-top: 1px dashed rgba(139,94,26,.2); }
+.psource-body.open { display: block; }
+.psource-row { margin-bottom: 8px; }
+.psource-row-label { font-size: 9px; letter-spacing: .11em; text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: 3px; }
+.psource-row-text { font-size: 13px; font-weight: 300; color: var(--ink); line-height: 1.55; }
+.psource-adapt { font-size: 13px; font-weight: 300; background: #ede0c0; border-left: 2px solid var(--amber); padding: 6px 8px; border-radius: 0 3px 3px 0; line-height: 1.55; }
+.psource-access { font-size: 12px; font-family: monospace; color: var(--think); }
+
+/* Deep dives */
+.dive-item { border: 1px solid var(--border); border-radius: 7px; overflow: hidden; margin-bottom: 8px; }
+.dive-head { display: flex; align-items: center; gap: 8px; background: var(--paper-dark); padding: 10px 12px; cursor: pointer; }
+.dive-icon { font-size: 11px; color: var(--ink-faint); flex-shrink: 0; width: 11px; }
+.dive-topic { font-size: 13px; flex: 1; color: var(--ink); font-weight: 300; }
+.dive-body { display: none; padding: 10px 12px; border-top: 1px dashed var(--border); }
+.dive-body.open { display: block; }
+.dive-hook { font-size: 13px; color: var(--ink-muted); font-style: italic; margin-bottom: 7px; line-height: 1.6; }
+.dive-source-row { display: flex; gap: 6px; margin-bottom: 6px; align-items: baseline; }
+.dive-source-label { font-size: 9px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); flex-shrink: 0; }
+.dive-source { font-size: 12px; color: var(--ink); font-style: italic; }
+.dive-note { font-size: 12px; color: var(--ink-muted); padding-top: 6px; border-top: 1px dashed var(--border); line-height: 1.6; }
+
+/* Unknowns */
+.unknowns-list { list-style: none; }
+.unknowns-list li { padding: 8px 0; border-bottom: 1px dashed var(--border); font-size: 14px; font-weight: 300; color: var(--ink); line-height: 1.55; padding-left: 16px; position: relative; }
+.unknowns-list li::before { content: '?'; position: absolute; left: 0; color: var(--ink-faint); font-size: 13px; }
+
+/* Key sources */
+.source-item { background: var(--paper-dark); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; margin-bottom: 8px; }
+.source-claim { display: flex; align-items: baseline; gap: 7px; margin-bottom: 5px; flex-wrap: wrap; }
+.source-claim-text { font-size: 13px; font-weight: 300; font-style: italic; color: var(--ink); line-height: 1.5; flex: 1; min-width: 0; }
+.source-cite { display: flex; gap: 5px; align-items: baseline; }
+.source-arrow { color: var(--ink-faint); font-size: 12px; flex-shrink: 0; }
+.source-ref { font-size: 12px; color: var(--ink-muted); flex: 1; }
+.source-access { font-size: 10px; background: var(--paper-darker); padding: 1px 5px; border-radius: 2px; color: var(--ink-faint); flex-shrink: 0; white-space: nowrap; }
+
+/* Reliability badges */
+.rel-badge { display: inline-block; font-size: 9px; letter-spacing: .07em; text-transform: uppercase; padding: 2px 6px; border-radius: 3px; vertical-align: middle; white-space: nowrap; }
+.rel-established { background: #d4ead9; color: #1a4d25; border: .5px solid rgba(42,92,63,.4); }
+.rel-supported    { background: #dde8d4; color: #2d4a1a; border: .5px solid rgba(74,107,42,.4); }
+.rel-debated      { background: #f0e4cc; color: #5c3a0a; border: .5px solid rgba(139,94,26,.4); }
+.rel-speculative  { background: #f0d4d4; color: #5c1a1a; border: .5px solid rgba(122,31,31,.4); }
+
+/* Confidence */
+.conf-pct-row { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+.conf-pct { font-family: 'Playfair Display', serif; font-size: 40px; }
+.conf-tag { font-size: 13px; font-style: italic; color: var(--ink-muted); }
+.conf-reason { font-size: 14px; font-weight: 300; font-style: italic; color: var(--ink-muted); line-height: 1.65; }
+
+/* Thinking */
+.thinking-wrap { background: var(--think-bg); border: 1px solid rgba(31,74,107,.2); border-radius: 7px; padding: 10px 12px; }
+.thinking-text { font-size: 12px; font-family: monospace; color: var(--think); white-space: pre-wrap; line-height: 1.55; max-height: 340px; overflow-y: auto; }
+
+/* Model tabs */
+.model-tabs { display: flex; gap: 6px; flex-wrap: wrap; padding: 8px 14px; background: var(--paper-darker); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.model-tab { padding: 5px 10px; border-radius: 5px; background: var(--paper-dark); border: 1px solid var(--border-strong); font-size: 12px; color: var(--ink-muted); cursor: pointer; transition: all .15s; display: flex; gap: 5px; align-items: center; }
+.model-tab.active { background: var(--paper); border-color: var(--accent); color: var(--ink); }
+.tab-st { font-size: 11px; }
+.tab-st.loading { color: var(--amber); animation: spin 1s linear infinite; display: inline-block; }
+.tab-st.done { color: var(--green); }
+.tab-st.failed { color: var(--red); }
+
+/* Swipe indicator overlay (shows briefly on first result) */
+#swipe-hint {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+  background: rgba(26,24,20,0.75); color: var(--paper);
+  padding: 12px 20px; border-radius: 8px; font-size: 14px; text-align: center;
+  pointer-events: none; z-index: 60; opacity: 0; transition: opacity .4s;
+}
+#swipe-hint.show { opacity: 1; }
+
+/* Responsive tweaks for larger screens (tablet / desktop preview) */
+@media (min-width: 600px) {
+  #screen-setup { max-width: 560px; margin: 0 auto; }
+  .nav-arrow { width: 52px; height: 80px; font-size: 30px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- ── Top bar ─────────────────────────────────────────────────── -->
+  <div id="top-bar">
+    <h1 id="top-title">Alternative History Explorer</h1>
+    <button class="top-btn" onclick="showHistory()">History</button>
+    <button class="top-btn" id="btn-new" onclick="newQuestion()" style="display:none">New ✦</button>
+  </div>
+
+  <!-- ── Setup screen ────────────────────────────────────────────── -->
+  <div class="screen" id="screen-setup">
+
+    <!-- Providers -->
+    <div class="section-card">
+      <div class="section-card-head">Models &amp; API Keys</div>
+      <div id="providers-body"></div>
+      <div class="card-note">Keys stored in your browser only. Tick to enable each provider.</div>
+    </div>
+
+    <!-- Input -->
+    <div class="section-card">
+      <textarea id="question"
+        placeholder="Ask a counterfactual question — e.g. 'What if the Byzantine Empire had not fallen in 1453?'"
+        oninput="updateBudget()"></textarea>
+      <button class="ask-btn" id="ask-btn" onclick="ask()">
+        <span>Explore this question</span><span>→</span>
+      </button>
+    </div>
+
+    <!-- Examples -->
+    <div class="examples-label">Example questions</div>
+    <div class="ex-pills">
+      <button class="ex-pill" onclick="fill('What if the Song Dynasty had not lost northern China to the Jurchen Jin in 1127?')">Song Dynasty industrialisation</button>
+      <button class="ex-pill" onclick="fill('What would the world look like had the Byzantine Empire not fallen in 1453?')">Byzantium survives 1453</button>
+      <button class="ex-pill" onclick="fill('What if West African states had developed ocean-going naval power in the 15th century?')">West African naval power</button>
+      <button class="ex-pill" onclick="fill('How would history differ if the Islamic Golden Age had continued past the Mongol sack of Baghdad in 1258?')">Islamic Golden Age uninterrupted</button>
+    </div>
+
+    <!-- Status -->
+    <div id="status-card" class="status-card" style="display:none">
+      <div class="status-row"><span class="status-label">Status</span><span id="s-status">—</span></div>
+      <div class="status-row"><span class="status-label">Running</span><span id="s-models" style="font-size:12px">—</span></div>
+      <div class="status-row"><span class="status-label">Elapsed</span><span id="s-elapsed">0s</span></div>
+    </div>
+
+    <!-- Error -->
+    <div id="error-card" class="error-card" style="display:none"></div>
+
+    <!-- Model comparison tabs (shown when multiple providers run) -->
+    <div id="model-tabs" style="display:none" class="model-tabs"></div>
+
+  </div><!-- /screen-setup -->
+
+  <!-- ── Results screen ──────────────────────────────────────────── -->
+  <div class="screen hidden" id="screen-results">
+    <!-- Current panel title bar -->
+    <div id="panel-title-bar">
+      <span id="panel-icon">✦</span>
+      <div id="panel-title">—</div>
+      <div id="panel-counter">1 / 11</div>
+    </div>
+
+    <!-- Model tabs (for multi-provider comparison) -->
+    <div id="result-model-tabs" style="display:none" class="model-tabs"></div>
+
+    <!-- The carousel viewport -->
+    <div id="carousel-viewport">
+      <!-- Panels injected here by buildCarousel() -->
+      <div id="carousel-track"></div>
+
+      <!-- Navigation arrows — always visible, show swipe direction -->
+      <button class="nav-arrow" id="arrow-prev" onclick="navigate(-1)" aria-label="Previous panel">‹</button>
+      <button class="nav-arrow" id="arrow-next" onclick="navigate(1)"  aria-label="Next panel">›</button>
+
+      <!-- Brief swipe hint shown on first result -->
+      <div id="swipe-hint">Swipe left or right to explore</div>
+    </div>
+
+    <!-- Dot navigation bar -->
+    <div id="dot-nav"></div>
+  </div><!-- /screen-results -->
+
+</div><!-- /app -->
+
+<!-- ── History modal ────────────────────────────────────────────────── -->
+<div id="modal-overlay" onclick="closeHistory()">
+  <div id="modal-sheet" onclick="event.stopPropagation()">
+    <div id="modal-handle"></div>
+    <div id="modal-title">Search History</div>
+    <div id="modal-list"></div>
+    <button id="modal-close" onclick="closeHistory()">Close</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════════════
+// PANEL DEFINITIONS
+// Each entry maps to one card in the swipe carousel.
+// id matches the result object field; title/icon shown in the title bar.
+// ═══════════════════════════════════════════════════════════════════════════
+const PANEL_DEFS = [
+  { id:'scenario',        title:'The Alternative Scenario',          icon:'🌐' },
+  { id:'pushback',        title:"Historian's Objection",             icon:'⚔'  },
+  { id:'scholarly',       title:'Where Scholarship Differs',         icon:'📚' },
+  { id:'reform',          title:'How It Could Have Happened',        icon:'⚙'  },
+  { id:'mindsets',        title:'Mindsets of the Time',              icon:'🧠' },
+  { id:'parallels',       title:'Historical Parallels',              icon:'🔄' },
+  { id:'primary_sources', title:'Primary Sources',                   icon:'📜' },
+  { id:'deep_dives',      title:'Deep Dives',                        icon:'🔍' },
+  { id:'unknowns',        title:"What We Don't Know",                icon:'❓' },
+  { id:'key_sources',     title:'Key Claims & Sources',              icon:'✓'  },
+  { id:'confidence',      title:'Confidence Assessment',             icon:'📊' },
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROVIDER & STORAGE SETUP
+// ═══════════════════════════════════════════════════════════════════════════
+const PROVIDER_DEFS = [
+  { id:'anthropic', name:'Anthropic', defaultModel:'claude-opus-4-7',             placeholder:'sk-ant-...' },
+  { id:'openai',    name:'OpenAI',    defaultModel:'gpt-4o',                       placeholder:'sk-...' },
+  { id:'google',    name:'Google',    defaultModel:'gemini-2.5-pro-preview-05-06', placeholder:'AIza...' },
+  { id:'xai',       name:'xAI',       defaultModel:'grok-3',                       placeholder:'xai-...' },
+];
+const KEYS_KEY='ahe_keys', MODELS_KEY='ahe_models', ENABLED_KEY='ahe_enabled', STORE_KEY='ahe_android_v1';
+const ls    = k => { try { return JSON.parse(localStorage.getItem(k)||'{}'); } catch { return {}; } };
+const lsArr = k => { try { return JSON.parse(localStorage.getItem(k)||'[]'); } catch { return []; } };
+const esc   = s => (s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const safeUrl = u => { if(!u||typeof u!=='string')return'#'; const t=u.trim(); const s=t.toLowerCase().replace(/\s/g,''); if(s.startsWith('javascript:')||s.startsWith('data:')||s.startsWith('vbscript:'))return'#'; return(t.startsWith('http')||t.startsWith('/')||t.startsWith('#'))?t:'#'; };
+
+function renderProviders() {
+  const keys=ls(KEYS_KEY), models=ls(MODELS_KEY), enabled=ls(ENABLED_KEY);
+  const body=document.getElementById('providers-body'); body.innerHTML='';
+  PROVIDER_DEFS.forEach(p=>{
+    const sk=keys[p.id]||'', sm=models[p.id]||p.defaultModel;
+    // Anthropic is auto-enabled for the free tier even without a key (if PROXY_URL is set)
+    // Anthropic is always pre-checked when the free-tier proxy is available
+    const checked = p.id==='anthropic' ? true : (sk ? (enabled[p.id]!==false) : false);
+    const row=document.createElement('div'); row.className='provider-row';
+    row.innerHTML=`<input type="checkbox" id="pchk-${p.id}" ${checked?'checked':''} style="accent-color:var(--accent);width:18px;height:18px;cursor:pointer" onchange="saveEnabled('${p.id}',this.checked)"><span class="provider-name">${esc(p.name)}</span><input type="text" class="provider-model" id="pmod-${p.id}" value="${esc(sm)}" placeholder="${esc(p.defaultModel)}" oninput="saveModel('${p.id}',this.value)" style="max-width:110px"><input type="password" class="provider-key" id="pkey-${p.id}" value="${esc(sk)}" placeholder="${esc(p.placeholder)}" oninput="saveKey('${p.id}',this.value);autoCheck('${p.id}');updateFreeTierBadge()">`;
+    body.appendChild(row);
+    // Free-tier status badge shown only for Anthropic
+    if (p.id === 'anthropic') {
+      const badge = document.createElement('div');
+      badge.id = 'free-tier-badge';
+      badge.style.cssText = 'font-size:11px;padding:4px 14px 8px;font-style:italic;';
+      body.appendChild(badge);
+    }
+  });
+}
+function autoCheck(id){ const v=(document.getElementById('pkey-'+id)?.value||'').trim(); const cb=document.getElementById('pchk-'+id); if(cb&&v){cb.checked=true;saveEnabled(id,true);} }
+function saveKey(id,v)     { const d=ls(KEYS_KEY);    d[id]=v; localStorage.setItem(KEYS_KEY,JSON.stringify(d)); }
+function saveModel(id,v)   { const d=ls(MODELS_KEY);  d[id]=v; localStorage.setItem(MODELS_KEY,JSON.stringify(d)); }
+function saveEnabled(id,v) { const d=ls(ENABLED_KEY); d[id]=v; localStorage.setItem(ENABLED_KEY,JSON.stringify(d)); }
+function getActiveProviders(){
+  return PROVIDER_DEFS
+    .filter(p=>document.getElementById(`pchk-${p.id}`)?.checked)
+    .map(p=>({...p,key:(document.getElementById(`pkey-${p.id}`)?.value||'').trim(),model:(document.getElementById(`pmod-${p.id}`)?.value||p.defaultModel).trim()}))
+    // Allow Anthropic without a key when the proxy is available (free tier)
+    .filter(p=>p.key || p.id==='anthropic');  // Anthropic uses server-side key, no user key needed
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HISTORY
+// ═══════════════════════════════════════════════════════════════════════════
+function genId(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,7); }
+function getHistory(){ return lsArr(STORE_KEY); }
+function saveEntry(e){ const all=getHistory(); const i=all.findIndex(x=>x.id===e.id); if(i>=0)all[i]=e;else all.unshift(e); if(all.length>50)all.splice(50); localStorage.setItem(STORE_KEY,JSON.stringify(all)); }
+function relTime(ts){ const d=Date.now()-ts,m=Math.floor(d/60000); if(m<1)return'just now'; if(m<60)return`${m}m ago`; const h=Math.floor(m/60); if(h<24)return`${h}h ago`; const dy=Math.floor(h/24); if(dy===1)return'yesterday'; return new Date(ts).toLocaleDateString('en-US',{month:'short',day:'numeric'}); }
+function shortModel(m){ m=(m||'').toLowerCase(); if(m.includes('opus'))return'Opus'; if(m.includes('sonnet'))return'Sonnet'; if(m.includes('haiku'))return'Haiku'; if(m==='gpt-4o')return'GPT-4o'; if(m.includes('gpt-4o-mini'))return'4o-mini'; if(/^o[134]/.test(m))return m.split('-')[0].toUpperCase(); if(m.includes('gemini-2.5'))return'Gemini 2.5'; if(m.includes('grok-3'))return'Grok 3'; return m.split('-').slice(-2).join('-'); }
+
+function showHistory(){
+  const all=getHistory(), list=document.getElementById('modal-list');
+  list.innerHTML='';
+  if(!all.length){ list.innerHTML='<div class="history-empty">No searches yet.</div>'; }
+  else {
+    all.forEach(e=>{
+      const item=document.createElement('div'); item.className='history-item';
+      item.onclick=()=>{ closeHistory(); loadEntry(e); };
+      item.innerHTML=`<div class="history-q">${esc(e.question.length>80?e.question.slice(0,78)+'…':e.question)}</div><div class="history-meta">${e.model?esc(shortModel(e.model))+' · ':'' }${relTime(e.timestamp)}</div>`;
+      list.appendChild(item);
+    });
+  }
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeHistory(){ document.getElementById('modal-overlay').classList.remove('open'); }
+function loadEntry(e){
+  document.getElementById('question').value=e.question;
+  buildCarousel(e.result, e.thinking||'', e.question);
+  showScreen('results');
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CAROUSEL ENGINE
+// ═══════════════════════════════════════════════════════════════════════════
+let currentIdx = 0;
+let totalPanels = 0;
+let touchStartX = 0, touchStartY = 0, touchStartT = 0;
+let hintShown = false;
+
+/**
+ * Build all panel cards from a result object and insert them into the carousel.
+ * Panels are filled from the result's fields; missing fields produce empty panels
+ * (the model may not always return every field).
+ */
+function buildCarousel(result, thinkingText, question) {
+  const track = document.getElementById('carousel-track');
+  track.innerHTML = '';
+
+  const panels = [];
+
+  // Build each panel's content HTML
+  panels.push(buildScenarioPanel(result));
+  panels.push(buildPushbackPanel(result));
+  panels.push(buildScholarlyPanel(result));
+  panels.push(buildReformPanel(result));
+  panels.push(buildProsePanel('mindsets',  result, 'Mindsets &amp; Worldviews'));
+  panels.push(buildProsePanel('parallels', result, 'Comparable Situations'));
+  panels.push(buildPrimarySourcesPanel(result));
+  panels.push(buildDeepDivesPanel(result));
+  panels.push(buildUnknownsPanel(result));
+  panels.push(buildKeySourcesPanel(result));
+  panels.push(buildConfidencePanel(result));
+
+  // Optionally prepend a thinking panel if the model returned reasoning text
+  const activePanelDefs = [...PANEL_DEFS];
+  if (thinkingText && thinkingText.trim()) {
+    const thinkDiv = buildThinkingPanel(thinkingText);
+    panels.unshift(thinkDiv);
+    activePanelDefs.unshift({ id:'thinking', title:'Model Reasoning', icon:'⚡' });
+  }
+
+  totalPanels = panels.length;
+
+  panels.forEach((content, i) => {
+    const card = document.createElement('div');
+    card.className = 'panel-card';
+    const scroll = document.createElement('div');
+    scroll.className = 'panel-scroll';
+    scroll.innerHTML = content;
+    card.appendChild(scroll);
+    track.appendChild(card);
+  });
+
+  // Store panel defs for title-bar updates
+  track._defs = activePanelDefs;
+
+  // Build dot nav
+  const dotNav = document.getElementById('dot-nav');
+  dotNav.innerHTML = '';
+  for (let i = 0; i < totalPanels; i++) {
+    const dot = document.createElement('button');
+    dot.className = 'dot' + (i === 0 ? ' active' : '');
+    dot.setAttribute('aria-label', `Panel ${i+1}`);
+    dot.onclick = () => goToPanel(i);
+    dotNav.appendChild(dot);
+  }
+
+  currentIdx = 0;
+  updateCarouselPosition(false);
+  setupTouch(document.getElementById('carousel-viewport'));
+}
+
+/** Slide to panel at absolute index idx (with circular wrap). */
+function navigate(dir) {
+  goToPanel((currentIdx + dir + totalPanels) % totalPanels);
+}
+
+function goToPanel(idx) {
+  currentIdx = idx;
+  updateCarouselPosition(true);
+}
+
+function updateCarouselPosition(animate) {
+  const track = document.getElementById('carousel-track');
+  if (!animate) track.style.transition = 'none';
+  else          track.style.transition = 'transform .32s cubic-bezier(.4,0,.2,1)';
+  track.style.transform = `translateX(${-currentIdx * 100}%)`;
+
+  // Update title bar
+  const defs = track._defs || PANEL_DEFS;
+  const def  = defs[currentIdx] || {};
+  document.getElementById('panel-icon').textContent    = def.icon    || '✦';
+  document.getElementById('panel-title').textContent   = def.title   || '';
+  document.getElementById('panel-counter').textContent = `${currentIdx + 1} / ${totalPanels}`;
+
+  // Update dots
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === currentIdx));
+
+  // Scroll the current panel's content back to top
+  const cards = track.querySelectorAll('.panel-scroll');
+  if (cards[currentIdx]) cards[currentIdx].scrollTop = 0;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// TOUCH / SWIPE HANDLING
+// ═══════════════════════════════════════════════════════════════════════════
+function setupTouch(el) {
+  // Remove old listeners by cloning and replacing the element
+  const clone = el.cloneNode(false);
+  while (el.firstChild) clone.appendChild(el.firstChild);
+  el.parentNode.replaceChild(clone, el);
+  const newEl = document.getElementById('carousel-viewport');
+
+  newEl.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartT = Date.now();
+  }, { passive: true });
+
+  newEl.addEventListener('touchend', e => {
+    const dx  = e.changedTouches[0].clientX - touchStartX;
+    const dy  = e.changedTouches[0].clientY - touchStartY;
+    const dt  = Date.now() - touchStartT;
+    const vel = Math.abs(dx) / dt; // px/ms — detect flicks
+
+    // Swipe: horizontal displacement > vertical AND either far enough or fast enough
+    if (Math.abs(dx) > Math.abs(dy) && (Math.abs(dx) > 45 || vel > 0.4)) {
+      navigate(dx < 0 ? 1 : -1);
+    }
+  }, { passive: true });
+
+  // Keyboard navigation for desktop/tablet with physical keyboard
+  newEl.setAttribute('tabindex', '0');
+  newEl.addEventListener('keydown', e => {
+    if (e.key === 'ArrowLeft')  navigate(-1);
+    if (e.key === 'ArrowRight') navigate(1);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PANEL CONTENT BUILDERS
+// Each returns an HTML string for the panel's .panel-scroll content.
+// All user-supplied text goes through esc(). URLs go through safeUrl().
+// ═══════════════════════════════════════════════════════════════════════════
+
+function buildScenarioPanel(r) {
+  if (!r.scenario) return '<p style="color:var(--ink-faint);font-style:italic">No scenario text in this response.</p>';
+  return `<div class="prose">${r.scenario.split('\n\n').map(p=>`<p>${esc(p)}</p>`).join('')}</div>`;
+}
+
+function buildPushbackPanel(r) {
+  if (!r.pushback) return '<p style="color:var(--ink-faint);font-style:italic">No historian\'s objection in this response.</p>';
+  return `<div class="pushback-banner"><div class="prose">${r.pushback.split('\n\n').map(p=>`<p>${esc(p)}</p>`).join('')}</div></div>`;
+}
+
+function buildScholarlyPanel(r) {
+  const divs = r.scholarly_divergences || [];
+  if (!divs.length) return '<p style="color:var(--ink-faint);font-style:italic">No scholarly corrections in this response.</p>';
+  return divs.map(d=>`
+    <div class="scholarly-item">
+      <span class="scholar-row-label">Popular account</span>
+      <div class="scholar-popular">${esc(d.popular_claim||'')}</div>
+      <span class="scholar-row-label">What specialists argue</span>
+      <div class="scholar-reality">${esc(d.scholarly_reality||'')}</div>
+      <div class="scholar-matters">${esc(d.why_it_matters||'')}</div>
+    </div>`).join('');
+}
+
+function buildReformPanel(r) {
+  const rf = r.reform || {};
+  const pct = Math.min(100, Math.max(0, parseInt(rf.feasibility_pct)||0));
+  const col = pct < 30 ? '#7a1f1f' : pct < 60 ? '#8b5e1a' : '#2a5c3f';
+  return `
+    <div class="reform-pct-row">
+      <span class="reform-pct-num" style="color:${col}">${pct}%</span>
+      <span class="reform-pct-lbl">${esc(rf.feasibility_label||'')}</span>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="reform-bar" style="width:0%;background:${col}"></div></div>
+    <div class="reform-two-col">
+      <div>
+        <div class="reform-col-head reform-for">Champions</div>
+        <div class="reform-col-body">${esc(rf.champions||'—')}</div>
+      </div>
+      <div>
+        <div class="reform-col-head reform-against">Resistance</div>
+        <div class="reform-col-body">${esc(rf.resistance||'—')}</div>
+      </div>
+    </div>
+    <div class="reform-row"><span class="reform-row-label">Closest historical analog</span><div class="reform-row-text">${esc(rf.closest_analog||'—')}</div></div>
+    <div class="reform-row"><span class="reform-row-label">Most achievable version</span><div class="reform-row-text">${esc(rf.realistic_ceiling||'—')}</div></div>`;
+}
+
+function buildProsePanel(field, r, label) {
+  const text = r[field] || '';
+  if (!text) return `<p style="color:var(--ink-faint);font-style:italic">No ${label.toLowerCase()} in this response.</p>`;
+  return `<div class="prose">${text.split('\n\n').map(p=>`<p>${esc(p)}</p>`).join('')}</div>`;
+}
+
+function buildPrimarySourcesPanel(r) {
+  const srcs = r.primary_sources || [];
+  if (!srcs.length) return '<p style="color:var(--ink-faint);font-style:italic">No primary sources in this response.</p>';
+  return srcs.map((s,i)=>`
+    <div class="psource-item">
+      <div class="psource-head" onclick="togglePs(${i})">
+        <span class="psource-icon" id="psi-${i}">▸</span>
+        <span class="psource-name">${esc(s.name||'')}</span>
+        <span class="psource-type-tag">${esc(s.type||'')}</span>
+      </div>
+      <div class="psource-body" id="psb-${i}">
+        <div class="psource-row"><span class="psource-row-label">Period</span><div class="psource-row-text">${esc(s.period||'')}</div></div>
+        <div class="psource-row"><span class="psource-row-label">Contains</span><div class="psource-row-text">${esc(s.what_it_contains||'')}</div></div>
+        <div class="psource-row"><span class="psource-row-label">Relevance</span><div class="psource-row-text">${esc(s.relevance||'')}</div></div>
+        <div class="psource-row"><span class="psource-row-label">How to use it</span><div class="psource-adapt">${esc(s.how_to_adapt||'')}</div></div>
+        <div class="psource-row"><span class="psource-row-label">Limitations</span><div class="psource-row-text" style="font-style:italic">${esc(s.limitations||'')}</div></div>
+        <div class="psource-row"><span class="psource-row-label">Access</span><div class="psource-access">${esc(s.access||'')}</div></div>
+      </div>
+    </div>`).join('');
+}
+
+function buildDeepDivesPanel(r) {
+  const dives = r.deep_dives || [];
+  if (!dives.length) return '<p style="color:var(--ink-faint);font-style:italic">No deep dives in this response.</p>';
+  return dives.map((d,i)=>`
+    <div class="dive-item">
+      <div class="dive-head" onclick="toggleDive(${i})">
+        <span class="dive-icon" id="di-${i}">▸</span>
+        <span class="rel-badge ${relBadge(d.reliability)}">${esc(d.reliability||'')}</span>
+        <span class="dive-topic">${esc(d.topic||'')}</span>
+      </div>
+      <div class="dive-body" id="db-${i}">
+        <div class="dive-hook">${esc(d.hook||'')}</div>
+        <div class="dive-source-row"><span class="dive-source-label">Start with</span><span class="dive-source">${esc(d.best_source||'')}</span></div>
+        <div class="dive-note">${esc(d.note||'')}</div>
+      </div>
+    </div>`).join('');
+}
+
+function buildUnknownsPanel(r) {
+  const items = r.unknowns || [];
+  if (!items.length) return '<p style="color:var(--ink-faint);font-style:italic">No unknowns listed in this response.</p>';
+  return `<ul class="unknowns-list">${items.map(u=>`<li>${esc(u)}</li>`).join('')}</ul>`;
+}
+
+function buildKeySourcesPanel(r) {
+  const srcs = r.key_sources || [];
+  if (!srcs.length) return '<p style="color:var(--ink-faint);font-style:italic">No key sources in this response.</p>';
+  return srcs.map(s=>`
+    <div class="source-item">
+      <div class="source-claim">
+        <span class="rel-badge ${relBadge(s.reliability)}">${esc(s.reliability||'')}</span>
+        <span class="source-claim-text">${esc(s.claim||'')}</span>
+      </div>
+      <div class="source-cite">
+        <span class="source-arrow">→</span>
+        <span class="source-ref">${esc(s.source||'')}</span>
+        <span class="source-access">${esc(s.access||'')}</span>
+      </div>
+    </div>`).join('');
+}
+
+function buildConfidencePanel(r) {
+  const pct = Math.min(100, Math.max(0, parseInt(r.confidence)||0));
+  const col = pct < 30 ? 'var(--red)' : pct < 60 ? 'var(--amber)' : 'var(--green)';
+  return `
+    <div class="conf-pct-row">
+      <span class="conf-pct" style="color:${col}">${pct}%</span>
+      <span class="conf-tag">${esc(r.confidence_label||'')}</span>
+    </div>
+    <div class="bar-bg"><div class="bar-fill" id="conf-bar" style="width:0%;background:${col}"></div></div>
+    <p class="conf-reason">${esc(r.confidence_reason||'')}</p>`;
+}
+
+function buildThinkingPanel(text) {
+  return `<div class="thinking-wrap"><pre class="thinking-text">${esc(text)}</pre></div>`;
+}
+
+// Animate bars after DOM renders
+function animateBars() {
+  setTimeout(()=>{
+    const rb = document.getElementById('reform-bar');
+    const cb = document.getElementById('conf-bar');
+    // Reform bar: find its panel and get the pct from its previous sibling's text
+    if (rb) rb.style.width = rb.style.background === '' ? '0%' : (rb.style.width || '0%');
+    // We re-animate by storing pct in a data attr
+    if (rb && rb.dataset.pct) rb.style.width = rb.dataset.pct + '%';
+    if (cb && cb.dataset.pct) cb.style.width = cb.dataset.pct + '%';
+  }, 80);
+}
+
+// Accordion helpers
+function togglePs(i)  { const b=document.getElementById(`psb-${i}`),ic=document.getElementById(`psi-${i}`); const o=b.classList.toggle('open'); ic.textContent=o?'▾':'▸'; }
+function toggleDive(i){ const b=document.getElementById(`db-${i}`), ic=document.getElementById(`di-${i}`); const o=b.classList.toggle('open'); ic.textContent=o?'▾':'▸'; }
+
+function relBadge(r){ const v=(r||'').toLowerCase(); return v==='established'?'rel-established':v==='supported'?'rel-supported':v==='debated'?'rel-debated':'rel-speculative'; }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════════════
+function showScreen(name) {
+  document.getElementById('screen-setup').classList.toggle('hidden', name !== 'setup');
+  document.getElementById('screen-results').classList.toggle('hidden', name !== 'results');
+  document.getElementById('btn-new').style.display = name === 'results' ? 'inline-block' : 'none';
+  if (name === 'results') {
+    // Show swipe hint on first result, then fade it out
+    if (!hintShown) {
+      hintShown = true;
+      const hint = document.getElementById('swipe-hint');
+      hint.classList.add('show');
+      // Pulse the arrows as a visual hint
+      document.getElementById('arrow-prev').classList.add('hint');
+      document.getElementById('arrow-next').classList.add('hint');
+      setTimeout(()=>{ hint.classList.remove('show'); }, 2800);
+    }
+  }
+}
+
+function newQuestion() {
+  showScreen('setup');
+  document.getElementById('question').focus();
+}
+
+function fill(t) { document.getElementById('question').value = t; }
+function updateBudget() {}  // retained for compatibility
+
+// ═══════════════════════════════════════════════════════════════════════════
+// FREE-TIER RATE LIMIT  (client-side enforcement, server enforces for real)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * PROXY_URL — set this to your deployed Cloudflare Worker URL after deployment.
+ * When empty the app tries to call Anthropic directly using the user's own key.
+ * Example: 'https://alt-history-proxy.YOUR-SUBDOMAIN.workers.dev'
+ */
+// When served from the same domain as the Worker, use that origin automatically.
+const PROXY_URL = window.location.origin;
+
+const FREE_DAILY_LIMIT = 5;
+const FREE_COUNT_KEY   = 'ahe_free_count';   // { date: 'YYYY-MM-DD', count: n }
+
+/** Read today's free-tier usage from localStorage. */
+function getFreeTierUsage() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(FREE_COUNT_KEY) || '{}');
+    const today  = new Date().toISOString().slice(0, 10);
+    if (stored.date !== today) return { date: today, count: 0 };
+    return stored;
+  } catch { return { date: new Date().toISOString().slice(0, 10), count: 0 }; }
+}
+
+/** Increment today's free-tier usage counter. */
+function incrementFreeTier() {
+  const usage = getFreeTierUsage();
+  usage.count += 1;
+  localStorage.setItem(FREE_COUNT_KEY, JSON.stringify(usage));
+  updateFreeTierBadge();
+}
+
+/** Update the "X / 5 free today" badge in the Anthropic provider row. */
+function updateFreeTierBadge() {
+  const badge = document.getElementById('free-tier-badge');
+  if (!badge) return;
+  const userKey = (document.getElementById('pkey-anthropic')?.value || '').trim();
+  if (userKey) { badge.textContent = 'Own key — unlimited'; badge.style.color = 'var(--green)'; return; }
+  if (!PROXY_URL) { badge.textContent = 'Set PROXY_URL to enable free tier'; badge.style.color = 'var(--red)'; return; }
+  const { count } = getFreeTierUsage();
+  const remaining = Math.max(0, FREE_DAILY_LIMIT - count);
+  badge.textContent = remaining > 0
+    ? `${remaining} of ${FREE_DAILY_LIMIT} free questions left today`
+    : 'Daily free limit reached — add your own API key below';
+  badge.style.color = remaining > 0 ? 'var(--green)' : 'var(--red)';
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// API ADAPTERS
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Call Anthropic via the proxy (or directly if the user has their own key).
+ *
+ * Routing logic:
+ *  • User has their own key  → send it in X-User-Api-Key header; proxy forwards
+ *    it to Anthropic directly, no rate limit applied server-side.
+ *  • No key + PROXY_URL set  → call proxy with no key header; proxy uses the
+ *    server-side key and enforces the daily rate limit by IP.
+ *  • No key + no PROXY_URL   → error (nothing to call).
+ */
+async function fetchAnthropic(key, model, messages, effort) {
+  const userKey = key && key.trim();
+
+  // Decide which endpoint to use
+  if (!userKey && !PROXY_URL) {
+    throw new Error('No Anthropic API key set and no proxy configured. Enter your own key in the Anthropic row, or deploy the Cloudflare Worker and set PROXY_URL.');
+  }
+
+  // Client-side pre-check for free tier (real enforcement is on the server)
+  if (!userKey && PROXY_URL) {
+    const { count } = getFreeTierUsage();
+    if (count >= FREE_DAILY_LIMIT) {
+      throw new Error(`You have used all ${FREE_DAILY_LIMIT} free questions for today. Add your own Anthropic API key in the settings to continue without limits.`);
+    }
+  }
+
+  const endpoint = userKey
+    ? 'https://api.anthropic.com/v1/messages'   // direct call with user's key
+    : PROXY_URL;                                  // proxy call (server uses built-in key)
+
+  const headers = { 'content-type': 'application/json' };
+  if (userKey) {
+    // Direct call to Anthropic — needs these extra headers
+    headers['anthropic-version'] = '2023-06-01';
+    headers['anthropic-dangerous-direct-browser-access'] = 'true';
+    headers['x-api-key'] = userKey;
+  } else {
+    // Proxy call — no API key in headers (proxy adds its own server-side key)
+    headers['anthropic-version'] = '2023-06-01';
+  }
+
+  const body = { model, max_tokens: 24000, thinking: { type:'adaptive' }, output_config: { effort }, system: SYS, messages };
+  const res  = await fetch(endpoint, { method:'POST', headers, body: JSON.stringify(body) });
+  const data = await res.json();
+
+  // Handle proxy-specific rate-limit response
+  if (res.status === 429 && data.rate_limited) {
+    throw new Error(data.error || 'Daily free limit reached. Add your own Anthropic API key to continue.');
+  }
+  if (!res.ok) throw new Error('Anthropic ' + res.status + ': ' + (data.error?.message || JSON.stringify(data.error)));
+  if (data.stop_reason === 'max_tokens') throw new Error('Response truncated (max_tokens).');
+
+  // Count successful free-tier usage
+  if (!userKey) incrementFreeTier();
+
+  let thinkingText = '', mainText = '';
+  for (const b of (data.content||[])) { if(b.type==='thinking') thinkingText+=b.thinking||''; else if(b.type==='text') mainText+=b.text||''; }
+  return { mainText, thinkingText };
+}
+async function fetchOpenAI(key, model, messages) {
+  const isO = /^o\d/.test(model);
+  const msgs = [{ role: isO?'developer':'system', content: SYS }, ...messages];
+  const body = { model, messages:msgs, max_completion_tokens:16000 };
+  if (!isO) body.response_format = { type:'json_object' };
+  const res = await fetch('https://api.openai.com/v1/chat/completions', { method:'POST', headers:{'content-type':'application/json','Authorization':'Bearer '+key}, body:JSON.stringify(body) });
+  const data = await res.json();
+  if (!res.ok) throw new Error('OpenAI ' + res.status + ': ' + (data.error?.message || JSON.stringify(data.error)));
+  return { mainText: data.choices[0].message.content, thinkingText: '' };
+}
+async function fetchGoogle(key, model, messages) {
+  const contents = messages.map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:m.content}]}));
+  const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`, { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({contents,systemInstruction:{parts:[{text:SYS}]},generationConfig:{responseMimeType:'application/json',maxOutputTokens:16000}}) });
+  const data = await res.json();
+  if (!res.ok) throw new Error('Google ' + res.status + ': ' + (data.error?.message || JSON.stringify(data.error)));
+  return { mainText: data.candidates?.[0]?.content?.parts?.[0]?.text||'', thinkingText:'' };
+}
+async function fetchXAI(key, model, messages) {
+  const res = await fetch('https://api.x.ai/v1/chat/completions', { method:'POST', headers:{'content-type':'application/json','Authorization':'Bearer '+key}, body:JSON.stringify({model,messages:[{role:'system',content:SYS},...messages],response_format:{type:'json_object'},max_tokens:16000}) });
+  const data = await res.json();
+  if (!res.ok) throw new Error('xAI ' + res.status + ': ' + (data.error?.message || JSON.stringify(data.error)));
+  return { mainText: data.choices[0].message.content, thinkingText:'' };
+}
+async function fetchProvider(prov, messages, effort) {
+  switch(prov.id){
+    case 'anthropic': return fetchAnthropic(prov.key, prov.model, messages, effort);
+    case 'openai':    return fetchOpenAI(prov.key, prov.model, messages);
+    case 'google':    return fetchGoogle(prov.key, prov.model, messages);
+    case 'xai':       return fetchXAI(prov.key, prov.model, messages);
+    default: throw new Error('Unknown provider: ' + prov.id);
+  }
+}
+
+function parseMainText(text) {
+  let c = text.replace(/^```json\s*/,'').replace(/^```\s*/,'').replace(/\s*```$/,'').trim();
+  c = c.replace(/^\s*\/\/[^\n]*/gm,'').replace(/\n{3,}/g,'\n\n').trim();
+  try { return JSON.parse(c); } catch {
+    const m = c.match(/\{[\s\S]*\}/);
+    if (!m) throw new Error('Model did not return JSON.\n\n' + c.slice(0,500));
+    try { return JSON.parse(m[0]); } catch(e) { throw new Error('JSON parse failed: ' + e.message + '\n\n' + c.slice(0,500)); }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SYSTEM PROMPT (same as desktop version)
+// ═══════════════════════════════════════════════════════════════════════════
+const SYS = `You are an alternative history research assistant with deep knowledge of world history. The user will ask a counterfactual "what if" question. Respond with a thorough, scholarly analysis as a JSON object with these fields:
+
+- scenario (string): A vivid 3-4 paragraph narrative of how events would have unfolded differently.
+- pushback (string): A historian's strongest objection to this scenario — steelman the counterargument.
+- scholarly_divergences (array of {popular_claim, scholarly_reality, why_it_matters}): Where popular understanding diverges from specialist scholarship.
+- reform (object {feasibility_pct, feasibility_label, champions, resistance, closest_analog, realistic_ceiling}): How feasible was this alternative? Who would have pushed for it?
+- mindsets (string): What were people actually thinking at the time? What worldviews shaped their decisions?
+- parallels (string): Real historical situations that partially mirror this counterfactual.
+- primary_sources (array of {name, type, period, what_it_contains, relevance, how_to_adapt, limitations, access}): Real primary sources a researcher should consult.
+- deep_dives (array of {topic, reliability, hook, best_source, note}): Specific research threads worth pursuing.
+- unknowns (array of strings): Things historians genuinely don't know that affect this question.
+- key_sources (array of {claim, source, reliability, access}): Major claims with their scholarly sources.
+- confidence (number 0-100): How confident are you in this analysis?
+- confidence_label (string): e.g. "Moderate — well-sourced core, speculative edges"
+- confidence_reason (string): Why this confidence level?
+
+Reliability levels: "established", "supported", "debated", "speculative".
+Cite real historians, real primary sources, real academic works. Never fabricate sources.`;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MAIN ASK FUNCTION
+// ═══════════════════════════════════════════════════════════════════════════
+let tabResults = {}, activeTabKey = null;
+
+function calculateEffort(q) {
+  const len=q.trim().length, m=(q.match(/\b(and|compared|versus|vs\.?|or|while|whereas|whether)\b/gi)||[]).length;
+  return len<80&&m<2?'low':len<220&&m<4?'medium':'high';
+}
+
+let timer = null;
+function startTimer(){ const s=Date.now(); timer=setInterval(()=>{ document.getElementById('s-elapsed').textContent=Math.floor((Date.now()-s)/1000)+'s'; },300); }
+function stopTimer(){ if(timer){clearInterval(timer);timer=null;} }
+
+function setStatus(text, cls) {
+  const el = document.getElementById('s-status');
+  const spin = cls.includes('loading')||cls.includes('thinking');
+  el.innerHTML = spin ? `<span class="spin">⟳</span> ${esc(text)}` : esc(text);
+  el.className = cls;
+}
+function showError(msg){ const el=document.getElementById('error-card'); el.textContent=msg; el.style.display='block'; }
+function clearError(){ document.getElementById('error-card').style.display='none'; }
+
+async function ask() {
+  const q = document.getElementById('question').value.trim();
+  if (!q) return;
+  const _checked = getActiveProviders();
+  // Always fall back to Anthropic free tier — never block the user
+  const active = _checked.length > 0 ? _checked : [{
+    id: 'anthropic', name: 'Anthropic', key: '',
+    model: (document.getElementById('pmod-anthropic')?.value || 'claude-opus-4-7').trim(),
+  }];
+  clearError();
+
+  const effort = calculateEffort(q);
+  const messages = [{ role:'user', content:q }];
+
+  document.getElementById('status-card').style.display = 'block';
+  document.getElementById('s-models').textContent = active.map(p=>p.name+' '+shortModel(p.model)).join(', ');
+  setStatus('sending…', 'status-loading');
+  startTimer();
+  document.getElementById('ask-btn').disabled = true;
+  tabResults = {};
+
+  const isComparison = active.length > 1;
+
+  try {
+    await Promise.all(active.map(async prov => {
+      const pKey = prov.id + ':' + prov.model;
+      try {
+        setStatus('thinking…', 'status-thinking');
+        const { mainText, thinkingText } = await fetchProvider(prov, messages, effort);
+        const parsed = parseMainText(mainText);
+        tabResults[pKey] = { result: parsed, thinking: thinkingText };
+
+        saveEntry({ id:genId(), timestamp:Date.now(), question:q, result:parsed, thinking:thinkingText, provider:prov.id, model:prov.model });
+
+        if (!isComparison || Object.keys(tabResults).length === 1) {
+          buildCarousel(parsed, thinkingText, q);
+          showScreen('results');
+          // Animate percentage bars after the panels are in the DOM
+          setTimeout(()=>{
+            const rb = document.getElementById('reform-bar');
+            const cb = document.getElementById('conf-bar');
+            const pct = Math.min(100,Math.max(0,parseInt(parsed.reform?.feasibility_pct)||0));
+            const cpct= Math.min(100,Math.max(0,parseInt(parsed.confidence)||0));
+            if(rb) rb.style.width = pct + '%';
+            if(cb) cb.style.width = cpct + '%';
+          }, 120);
+        }
+      } catch(e) {
+        tabResults[pKey] = { error: e.message };
+        if (!isComparison) { setStatus('error', 'status-fail'); showError(e.message); }
+      }
+    }));
+
+    const anyDone = Object.values(tabResults).some(r=>r.result);
+    setStatus(anyDone ? 'done' : 'all failed', anyDone ? 'status-done' : 'status-fail');
+
+  } finally {
+    stopTimer();
+    document.getElementById('ask-btn').disabled = false;
+  }
+}
+
+// Ctrl/Cmd+Enter submits from the textarea
+document.getElementById('question').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) ask();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+renderProviders();
+updateFreeTierBadge();
+</script>
+</body>
